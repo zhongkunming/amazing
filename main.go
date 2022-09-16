@@ -2,7 +2,7 @@ package main
 
 import (
 	"service-hub/core"
-	"service-hub/module/check"
+	"service-hub/module/daily_check"
 )
 
 func main() {
@@ -10,8 +10,9 @@ func main() {
 	core.InitZap()
 	core.InitCron()
 
-	// 注册签到任务
-	core.Register(check.DailyCheck{})
+	// 注册任务
+	core.Register(daily_check.DailyCheck{})
+	//core.Register(db_backup.DbBackup{})
 
 	core.Server()
 }
