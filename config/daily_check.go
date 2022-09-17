@@ -1,12 +1,12 @@
 package config
 
-type DailyCheckConfig struct {
-	LoginUrl   string                  `yaml:"loginUrl" json:"loginUrl"`
-	CheckInUrl string                  `yaml:"checkInUrl" json:"checkInUrl"`
-	Users      []DailyCheckUsersConfig `yaml:"users" json:"users"`
+type DailyCheck struct {
+	LoginUrl   string           `yaml:"loginUrl" json:"loginUrl"`
+	CheckInUrl string           `yaml:"checkInUrl" json:"checkInUrl"`
+	Users      []DailyCheckUser `yaml:"users" json:"users"`
 }
 
-type DailyCheckUsersConfig struct {
+type DailyCheckUser struct {
 	Email      string `yaml:"email" json:"email"`
 	Passwd     string `yaml:"passwd" json:"passwd"`
 	RememberMe string `yaml:"remember_me" json:"remember_me" default:"on"`

@@ -3,9 +3,11 @@ package core
 import (
 	"reflect"
 	"service-hub/global"
+	"sync"
 )
 
 var services = make([]Service, 0)
+var lock sync.Mutex
 
 func Server() {
 	// 加载需要启动的模块
@@ -24,5 +26,7 @@ func Server() {
 }
 
 func Register(service Service) {
+	defer lock.Unlock()
+	lock.Lock()
 	services = append(services, service)
 }

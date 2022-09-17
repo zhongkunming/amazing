@@ -21,11 +21,19 @@ func (r DailyCheck) Load() {
 	_, err := global.Cron.AddFunc(spec, func() {
 		waitGroup := sync.WaitGroup{}
 		global.Log.Infof("%s, 开始签到", time.Now().Format("2006-01-02"))
-		waitGroup.Add(len(global.Global.DailyCheckConfig.Users))
-		for _, user := range global.Global.DailyCheckConfig.Users {
-			processBody := func(u config.DailyCheckUsersConfig) {
+
+		users := global.Global.DailyCheck.Users
+		loginUrl := global.Global.DailyCheck.LoginUrl
+		checkInUrl := global.Global.DailyCheck.CheckInUrl
+
+		waitGroup.Add(len(users))
+		for _, user := range users {
+			processBody := func(u config.DailyCheckUser) {
 				defer waitGroup.Done()
-				body{user: u, client: resty.New().R()}.do()
+				body{user: u,
+					loginUrl:   loginUrl,
+					checkInUrl: checkInUrl,
+					client:     resty.New().R()}.do()
 			}
 			go processBody(user)
 		}

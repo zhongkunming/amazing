@@ -14,8 +14,10 @@ import (
 )
 
 type body struct {
-	user   config.DailyCheckUsersConfig
-	client *resty.Request
+	user       config.DailyCheckUser
+	loginUrl   string
+	checkInUrl string
+	client     *resty.Request
 }
 
 func (r body) do() {
@@ -48,7 +50,7 @@ func (r body) login() error {
 	body := make(map[string]string)
 	_ = json.Unmarshal(userJsonBytes, &body)
 	r.client.SetBody(body)
-	loginResp, err := r.client.Post(global.Global.DailyCheckConfig.LoginUrl)
+	loginResp, err := r.client.Post(r.loginUrl)
 	if err != nil {
 		return errors.New(fmt.Sprintf("请求登录接口失败, %s", err))
 	}
@@ -62,7 +64,7 @@ func (r body) login() error {
 }
 
 func (r body) checkin() (*model.CheckInResult, error) {
-	checkInResp, err := r.client.Post(global.Global.DailyCheckConfig.CheckInUrl)
+	checkInResp, err := r.client.Post(r.checkInUrl)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("请求签到接口失败, %s", err))
 	}

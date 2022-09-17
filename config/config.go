@@ -3,5 +3,7 @@ package config
 type Config struct {
 	App App `yaml:"app" json:"app"`
 
-	DailyCheckConfig DailyCheckConfig `yaml:"daily_check" json:"daily_check"`
+	DailyCheck DailyCheck `yaml:"dailyCheck" json:"dailyCheck"`
+
+	DbBackup DbBackup `yaml:"dbBackup" json:"dbBackup"`
 }
