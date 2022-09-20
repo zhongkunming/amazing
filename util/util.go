@@ -11,3 +11,7 @@ func TransByte(msg []byte) string {
 	msgStr, _ := strconv.Unquote(strings.Replace(strconv.Quote(msgTemp), `\\u`, `\u`, -1))
 	return msgStr
 }
+
+func Byte2Str(b []byte) string {
+	return *(*string)(unsafe.Pointer(&b))
+}

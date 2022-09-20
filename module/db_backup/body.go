@@ -2,119 +2,105 @@ package db_backup
 
 import (
 	"database/sql"
-	"encoding/json"
-	"fmt"
 	_ "github.com/go-sql-driver/mysql"
-	"gorm.io/gorm"
 	"reflect"
 	"service-hub/global"
-	"unsafe"
+	"service-hub/util"
 )
 
 type body struct {
-	db1 *sql.DB
-	db2 *sql.DB
+	bDb *sql.DB
+	sDb *sql.DB
 }
 
 func (r body) run() {
-	marshal, _ := json.Marshal(global.Global)
-	global.Log.Infof("%s", Byte2Str(marshal))
-	println(Byte2Str(marshal))
-	r.loadDb()
-	//dsn := "root:LANKE678@tcp(114.116.112.75:3306)/erp?charset=utf8mb4&parseTime=True&loc=Local"
-	//b := "root:123456@tcp(127.0.0.1:3306)/test?charset=utf8mb4&parseTime=True&loc=Local"
-	//bDb, _ := gorm.Open(mysql.Open(b), &gorm.Config{})
-	//
-	//b2 := "root:123456@tcp(127.0.0.1:3306)/test1?charset=utf8mb4&parseTime=True&loc=Local"
-	//b2Db, _ := gorm.Open(mysql.Open(b2), &gorm.Config{})
-	//
-	//// 查询所有表名
-	//tx := bDb.Raw("show tables")
-	////var tableName string
-	////tx.Scan(&tableName)
-	//rows, _ := tx.Rows()
-	//var tableNames = make([]string, 0)
-	//_ = tx.ScanRows(rows, &tableNames)
-	//tableNames = tableNames[1:]
-	//
-	//// 查询2表所有表
-	//tx2 := b2Db.Raw("show tables")
-	////var tableName string
-	////tx.Scan(&tableName)
-	//rows2, _ := tx2.Rows()
-	//var tableNames2 = make([]string, 0)
-	//_ = tx.ScanRows(rows2, &tableNames2)
-	//tableNames2 = tableNames2[1:]
-	//
-	//println()
-	//
-	//db, _ := sql.Open("mysql", "root:123456@tcp(127.0.0.1:3306)/test")
-	////rows, _ := db.Query("show tables")
-	//rows, _ := db.Query("show variables")
-	//
-	//types, _ := rows.ColumnTypes()
-	//var rowParam = make([]interface{}, len(types))
-	//var rowValue = make([]interface{}, len(types))
-	//for i, colType := range types {
-	//	rowValue[i] = reflect.New(colType.ScanType())
-	//	rowParam[i] = reflect.ValueOf(&rowValue[i]).Interface()
-	//}
-	//res := make([]map[string]interface{}, 0)
-	//for rows.Next() {
-	//	_ = rows.Scan(rowParam...)
-	//	record := make(map[string]interface{})
-	//	for i, colType := range types {
-	//		if rowValue[i] == nil {
-	//			// 如果是 nil 用空字符串代替
-	//			record[colType.Name()] = ""
-	//		} else {
-	//			//record[colType.Name()] = rowValue[i]
-	//			record[colType.Name()] = Byte2Str(rowValue[i].([]byte))
-	//		}
-	//	}
-	//	res = append(res, record)
-	//}
-	//marshal, _ := json.Marshal(res)
-	//fmt.Println(Byte2Str(marshal))
+	isConn := r.testConnection()
+	if !isConn {
+		panic("数据库未连接")
+	}
 
-	// 必须要把 rows 里的内容读完，或者显式调用 Close() 方法，
-	// 否则在 defer 的 rows.Close() 执行之前，连接永远不会释放
-	//var tablesName = make([]string, 0)
-	//for rows.Next() {
-	//	var name string
-	//	_ = rows.Scan(&name)
-	//	tablesName = append(tablesName, name)
-	//}
+	unCreatedTables := r.getUnCreatedTables()
+	if unCreatedTables == nil {
+		panic("表对比失败")
+	}
+
+	// 表结构同步(row_date)
+
+	// 数据同步(page)
+
 }
 
-func (r body) loadDb() {
+func (r body) syncTableStruct() bool {
 
-	//var err error
-	//db1Config := global.Global.DbBackup.Db1
-	//global.Log.Infof("数据库1配置, %v", db1Config)
-	//r.db1, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s",
-	//	db1Config.Username, db1Config.Passwd, db1Config.Host, db1Config.Database))
-	//if err != nil {
-	//	global.Log.Errorf("连接数据库1失败, %s", err)
-	//	return
-	//}
-	//
-	//db2Config := global.Global.DbBackup.Db2
-	//global.Log.Infof("数据库2配置, %v", db1Config)
-	//r.db2, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s)/%s",
-	//	db2Config.Username, db2Config.Passwd, db2Config.Host, db2Config.Database))
-	//if err != nil {
-	//	global.Log.Errorf("连接数据库2失败, %s", err)
-	//	return
-	//}
+	return false
 }
 
-func qmap(db *gorm.DB) {
-	tx := db.Raw("show variables")
+func (r body) getUnCreatedTables() []string {
+	tablesSql := "show tables"
 
-	rows, _ := tx.Rows()
-	res := make([]map[string]interface{}, 0)
+	allTableRows, err := r.bDb.Query(tablesSql)
+	if err != nil {
+		global.Log.Errorf("查询bDb所有表错误 %s", err)
+		return nil
+	}
+	allTable := getRowsSimpleData(allTableRows)
+	allTableName := make([]string, len(allTable))
+	for index := range allTable {
+		tableName := allTable[index].(string)
+		//name := *(*string)(unsafe.Pointer(&tableName))
+		allTableName = append(allTableName, tableName)
+	}
 
+	haveTableRows, err := r.sDb.Query(tablesSql)
+	if err != nil {
+		global.Log.Errorf("查询sDb所有表错误 %s", err)
+		return nil
+	}
+	haveTable := getRowsSimpleData(haveTableRows)
+	haveTableName := make([]string, len(allTable))
+	for index := range haveTable {
+		tableName := haveTable[index].(string)
+		//name := *(*string)(unsafe.Pointer(&tableName))
+		haveTableName = append(haveTableName, tableName)
+	}
+
+	dbNameMap := make(map[string]bool, len(haveTableName))
+	for _, elem := range haveTableName {
+		dbNameMap[elem] = true
+	}
+
+	unCreatedTableName := make([]string, 0)
+	for _, elem := range allTableName {
+		if !dbNameMap[elem] {
+			unCreatedTableName = append(unCreatedTableName, elem)
+		}
+	}
+
+	return unCreatedTableName
+}
+
+func (r body) testConnection() bool {
+	var result string
+	var row *sql.Row
+	var err error
+
+	row = r.bDb.QueryRow("select 1")
+	err = row.Scan(&result)
+	if err != nil {
+		return false
+	}
+
+	row = r.sDb.QueryRow("select 1")
+	err = row.Scan(&result)
+	if err != nil {
+		return false
+	}
+
+	return true
+}
+
+func getRowsData(rows *sql.Rows) []map[string]interface{} {
+	defer rows.Close()
 	types, _ := rows.ColumnTypes()
 	var rowParam = make([]interface{}, len(types))
 	var rowValue = make([]interface{}, len(types))
@@ -122,7 +108,7 @@ func qmap(db *gorm.DB) {
 		rowValue[i] = reflect.New(colType.ScanType())
 		rowParam[i] = reflect.ValueOf(&rowValue[i]).Interface()
 	}
-
+	res := make([]map[string]interface{}, 0)
 	for rows.Next() {
 		_ = rows.Scan(rowParam...)
 		record := make(map[string]interface{})
@@ -131,16 +117,21 @@ func qmap(db *gorm.DB) {
 				// 如果是 nil 用空字符串代替
 				record[colType.Name()] = ""
 			} else {
-				//record[colType.Name()] = rowValue[i]
-				record[colType.Name()] = Byte2Str(rowValue[i].([]byte))
+				record[colType.Name()] = util.Byte2Str(rowValue[i].([]byte))
 			}
 		}
 		res = append(res, record)
 	}
-	marshal, _ := json.Marshal(res)
-	fmt.Println(Byte2Str(marshal))
+	return res
 }
 
-func Byte2Str(b []byte) string {
-	return *(*string)(unsafe.Pointer(&b))
+func getRowsSimpleData(rows *sql.Rows) []interface{} {
+	defer rows.Close()
+	var res = make([]interface{}, 0)
+	for rows.Next() {
+		var name interface{}
+		_ = rows.Scan(&name)
+		res = append(res, util.Byte2Str(name.([]byte)))
+	}
+	return res
 }

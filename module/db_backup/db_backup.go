@@ -1,6 +1,7 @@
 package db_backup
 
 import (
+	"database/sql"
 	"fmt"
 	"service-hub/global"
 	"sync"
@@ -23,7 +24,18 @@ func (r DbBackup) Load() {
 		waitGroup.Add(1)
 		processBody := func() {
 			defer waitGroup.Done()
-			body{}.run()
+
+			bDbConfig := global.Global.DbBackup.BDb
+			bDbUrl := fmt.Sprintf("%s:%s@tcp(%s)/%s", bDbConfig.Username, bDbConfig.Passwd, bDbConfig.Host, bDbConfig.Database)
+			bDb, _ := sql.Open("mysql", bDbUrl)
+			defer bDb.Close()
+
+			sDbConfig := global.Global.DbBackup.SDb
+			sDbUrl := fmt.Sprintf("%s:%s@tcp(%s)/%s", sDbConfig.Username, sDbConfig.Passwd, sDbConfig.Host, sDbConfig.Database)
+			sDb, _ := sql.Open("mysql", sDbUrl)
+			defer sDb.Close()
+
+			body{bDb: bDb, sDb: sDb}.run()
 		}
 		go processBody()
 		waitGroup.Wait()
