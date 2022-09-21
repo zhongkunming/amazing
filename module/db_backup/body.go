@@ -2,10 +2,13 @@ package db_backup
 
 import (
 	"database/sql"
+	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"reflect"
+	"regexp"
 	"service-hub/global"
 	"service-hub/util"
+	"strings"
 )
 
 type body struct {
@@ -14,6 +17,12 @@ type body struct {
 }
 
 func (r body) run() {
+	defer func() {
+		if err := recover(); err != nil {
+			global.Log.Errorf("同步数据表异常: %s", err)
+		}
+	}()
+
 	isConn := r.testConnection()
 	if !isConn {
 		panic("数据库未连接")
@@ -25,14 +34,83 @@ func (r body) run() {
 	}
 
 	// 表结构同步(row_date)
+	syncTableStruct := r.syncTableStruct(unCreatedTables)
+	if !syncTableStruct {
+		panic("表结构同步失败")
+	}
 
 	// 数据同步(page)
+	r.syncData()
 
 }
 
-func (r body) syncTableStruct() bool {
+func (r body) syncData() {
 
-	return false
+}
+
+func (r body) syncTableStruct(tables []string) bool {
+	defer func() {
+		if err := recover(); err != nil {
+			global.Log.Errorf("同步表结构发生 %s", err)
+		}
+	}()
+
+	if len(tables) == 0 || tables == nil {
+		return true
+	}
+	queryTableStructSql := "show create table %s"
+	rowDateSQl := "alter table %s add column row_date varchar(10) comment '备份时间'"
+	for _, elem := range tables {
+		rows, err := r.bDb.Query(fmt.Sprintf(queryTableStructSql, elem))
+		if err != nil {
+			global.Log.Errorf("获取表结构异常 %s", err)
+			return false
+		}
+		// 获取到原生表创建SQL
+		tableSQL := getRowsData(rows)[0]["Create Table"]
+		// 原生SQL分割()
+		tableStructCreateSQL := tableSQL.(string)
+		begin := strings.Index(tableStructCreateSQL, "(")
+		end := strings.LastIndex(tableStructCreateSQL, ")")
+		beforeSql, centSQL, endSQL := tableStructCreateSQL[:begin+1], tableStructCreateSQL[begin+1:end], tableStructCreateSQL[end:]
+		//global.Log.Infof("%s 原生表结构SQL: %s", elem, tableStructCreateSQL)
+
+		sqlArray := strings.Split(centSQL, ",")
+		newSqlArray := make([]string, 0)
+		for _, elem := range sqlArray {
+			if strings.Contains(elem, "PRIMARY KEY") ||
+				strings.Contains(elem, "UNIQUE KEY") {
+				continue
+			}
+			elem = strings.ReplaceAll(elem, "AUTO_INCREMENT", "")
+			newSqlArray = append(newSqlArray, elem)
+		}
+		newCentSQl := strings.Join(newSqlArray, ",")
+
+		endSQL = strings.ReplaceAll(endSQL, "ENGINE=MyISAM", "")
+		endSQL = strings.ReplaceAll(endSQL, "ENGINE=InnoDB", "")
+		endSQL = strings.ReplaceAll(endSQL, "ROW_FORMAT=FIXED", "")
+		reg := regexp.MustCompile(`AUTO_INCREMENT=(\d){1,}`)
+		endSQL = reg.ReplaceAllString(endSQL, ``)
+		reg = regexp.MustCompile(`ROW_FORMAT=[A-Z]{1,} `)
+		endSQL = reg.ReplaceAllString(endSQL, ``)
+
+		newTableStructSQl := fmt.Sprintf("%s%s%s", beforeSql, newCentSQl, endSQL)
+		//global.Log.Infof("%s 新结构SQL:\n%s", elem, newTableStructSQl)
+		_, err = r.sDb.Exec(newTableStructSQl)
+		if err != nil {
+			global.Log.Errorf("%s 新SQL执行错误\n%s\n%s", elem, newTableStructSQl, err)
+			return false
+		}
+		// 增加 row_date
+		_, err = r.bDb.Exec(fmt.Sprintf(rowDateSQl, elem))
+		if err != nil {
+			global.Log.Errorf("%s 追加row_date错误: %s", elem, err)
+			return false
+		}
+	}
+
+	return true
 }
 
 func (r body) getUnCreatedTables() []string {
@@ -80,19 +158,13 @@ func (r body) getUnCreatedTables() []string {
 }
 
 func (r body) testConnection() bool {
-	var result string
-	var row *sql.Row
 	var err error
 
-	row = r.bDb.QueryRow("select 1")
-	err = row.Scan(&result)
-	if err != nil {
+	if err = r.bDb.Ping(); err != nil {
 		return false
 	}
 
-	row = r.sDb.QueryRow("select 1")
-	err = row.Scan(&result)
-	if err != nil {
+	if err = r.sDb.Ping(); err != nil {
 		return false
 	}
 
@@ -100,7 +172,9 @@ func (r body) testConnection() bool {
 }
 
 func getRowsData(rows *sql.Rows) []map[string]interface{} {
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		_ = rows.Close()
+	}(rows)
 	types, _ := rows.ColumnTypes()
 	var rowParam = make([]interface{}, len(types))
 	var rowValue = make([]interface{}, len(types))
@@ -126,7 +200,9 @@ func getRowsData(rows *sql.Rows) []map[string]interface{} {
 }
 
 func getRowsSimpleData(rows *sql.Rows) []interface{} {
-	defer rows.Close()
+	defer func(rows *sql.Rows) {
+		_ = rows.Close()
+	}(rows)
 	var res = make([]interface{}, 0)
 	for rows.Next() {
 		var name interface{}

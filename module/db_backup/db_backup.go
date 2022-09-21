@@ -8,7 +8,9 @@ import (
 	"time"
 )
 
-const spec = "*/10 * * * * ?"
+const spec = "*/60 * * * * ?"
+
+//const spec = "0 29 9 * * ?"
 
 type DbBackup struct {
 }
@@ -28,12 +30,16 @@ func (r DbBackup) Load() {
 			bDbConfig := global.Global.DbBackup.BDb
 			bDbUrl := fmt.Sprintf("%s:%s@tcp(%s)/%s", bDbConfig.Username, bDbConfig.Passwd, bDbConfig.Host, bDbConfig.Database)
 			bDb, _ := sql.Open("mysql", bDbUrl)
-			defer bDb.Close()
+			defer func(bDb *sql.DB) {
+				_ = bDb.Close()
+			}(bDb)
 
 			sDbConfig := global.Global.DbBackup.SDb
 			sDbUrl := fmt.Sprintf("%s:%s@tcp(%s)/%s", sDbConfig.Username, sDbConfig.Passwd, sDbConfig.Host, sDbConfig.Database)
 			sDb, _ := sql.Open("mysql", sDbUrl)
-			defer sDb.Close()
+			defer func(sDb *sql.DB) {
+				_ = sDb.Close()
+			}(sDb)
 
 			body{bDb: bDb, sDb: sDb}.run()
 		}
