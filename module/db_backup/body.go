@@ -45,65 +45,100 @@ func (r body) run() {
 }
 
 func (r body) syncData() {
+	defer func() {
+		if err := recover(); err != nil {
+			global.Log.Errorf("同步表数据发生异常 %s", err)
+		}
+	}()
+	queryTableSQL := "show tables"
+	allTableRows, err := r.bDb.Query(queryTableSQL)
+	if err != nil {
+		global.Log.Errorf("查询bDb所有表错误 %s", err)
+		return
+	}
+	allTable := getRowsSimpleData(allTableRows)
+	// 表名称
+	allTableName := make([]string, len(allTable))
+	for index := range allTable {
+		allTableName = append(allTableName, allTable[index].(string))
+	}
+	dbName := global.Global.DbBackup.BDb.Database
+	queryColumnSqlTemplate := "select * from information_schema.columns where table_schema = '%s' and table_name = '%s'"
+	for _, tableName := range allTableName {
+		// 查询表字段SQL
+		queryColumnSQL := fmt.Sprintf(queryColumnSqlTemplate, dbName, tableName)
+		tableColumnRows, err := r.bDb.Query(queryColumnSQL)
+		if err != nil {
+			global.Log.Errorf("查询bDb表字段错误 %s %s", err, queryColumnSQL)
+			continue
+		}
+		tableColumn := getRowsData(tableColumnRows)
+		// 存放表字段
+		tableColumns := make([]string, len(tableColumn))
+		for index := range tableColumn {
+			columnName := tableColumn[index]["COLUMN_NAME"].(string)
+			tableColumns = append(tableColumns, columnName)
+		}
+
+	}
 
 }
 
 func (r body) syncTableStruct(tables []string) bool {
 	defer func() {
 		if err := recover(); err != nil {
-			global.Log.Errorf("同步表结构发生 %s", err)
+			global.Log.Errorf("同步表结构发生异常 %s", err)
 		}
 	}()
 
 	if len(tables) == 0 || tables == nil {
 		return true
 	}
-	queryTableStructSql := "show create table %s"
-	rowDateSQl := "alter table %s add column row_date varchar(10) comment '备份时间'"
+	queryTableCreateSql := "show create table %s"
+	alterTableRowDateSQL := "alter table %s add column row_date varchar(10) comment '备份时间'"
 	for _, elem := range tables {
-		rows, err := r.bDb.Query(fmt.Sprintf(queryTableStructSql, elem))
+		tableCreateRows, err := r.bDb.Query(fmt.Sprintf(queryTableCreateSql, elem))
 		if err != nil {
 			global.Log.Errorf("获取表结构异常 %s", err)
 			return false
 		}
-		// 获取到原生表创建SQL
-		tableSQL := getRowsData(rows)[0]["Create Table"]
-		// 原生SQL分割()
-		tableStructCreateSQL := tableSQL.(string)
-		begin := strings.Index(tableStructCreateSQL, "(")
-		end := strings.LastIndex(tableStructCreateSQL, ")")
-		beforeSql, centSQL, endSQL := tableStructCreateSQL[:begin+1], tableStructCreateSQL[begin+1:end], tableStructCreateSQL[end:]
-		//global.Log.Infof("%s 原生表结构SQL: %s", elem, tableStructCreateSQL)
+		// 原生SQL
+		nativeTableCreateSQL := getRowsData(tableCreateRows)[0]["Create Table"].(string)
 
-		sqlArray := strings.Split(centSQL, ",")
-		newSqlArray := make([]string, 0)
-		for _, elem := range sqlArray {
-			if strings.Contains(elem, "PRIMARY KEY") ||
-				strings.Contains(elem, "UNIQUE KEY") {
+		// 原生SQL分割()
+		begin := strings.Index(nativeTableCreateSQL, "(")
+		end := strings.LastIndex(nativeTableCreateSQL, ")")
+		// before center end
+		nativeTableBeforeSQL, nativeTableCenterSQL, nativeTableEndSQL :=
+			nativeTableCreateSQL[:begin+1], nativeTableCreateSQL[begin+1:end], nativeTableCreateSQL[end:]
+		// 处理 centerSQL
+		nativeTableCenterSQLArray := strings.Split(nativeTableCenterSQL, ",")
+		newNativeTableCenterSQLArray := make([]string, 0)
+		for _, value := range nativeTableCenterSQLArray {
+			if strings.Contains(value, "PRIMARY KEY") ||
+				strings.Contains(value, "UNIQUE KEY") {
 				continue
 			}
-			elem = strings.ReplaceAll(elem, "AUTO_INCREMENT", "")
-			newSqlArray = append(newSqlArray, elem)
+			value = strings.ReplaceAll(value, "AUTO_INCREMENT", "")
+			newNativeTableCenterSQLArray = append(newNativeTableCenterSQLArray, value)
 		}
-		newCentSQl := strings.Join(newSqlArray, ",")
+		newNativeTableCenterSQL := strings.Join(newNativeTableCenterSQLArray, ",")
 
-		endSQL = strings.ReplaceAll(endSQL, "ENGINE=MyISAM", "")
-		endSQL = strings.ReplaceAll(endSQL, "ENGINE=InnoDB", "")
-		endSQL = strings.ReplaceAll(endSQL, "ROW_FORMAT=FIXED", "")
-		reg := regexp.MustCompile(`AUTO_INCREMENT=(\d){1,}`)
-		endSQL = reg.ReplaceAllString(endSQL, ``)
-		reg = regexp.MustCompile(`ROW_FORMAT=[A-Z]{1,} `)
-		endSQL = reg.ReplaceAllString(endSQL, ``)
-
-		newTableStructSQl := fmt.Sprintf("%s%s%s", beforeSql, newCentSQl, endSQL)
-		//global.Log.Infof("%s 新结构SQL:\n%s", elem, newTableStructSQl)
-		_, err = r.sDb.Exec(newTableStructSQl)
+		// endSQL 处理
+		nativeTableEndSQL = strings.ReplaceAll(nativeTableEndSQL, "ENGINE=MyISAM", "")
+		nativeTableEndSQL = strings.ReplaceAll(nativeTableEndSQL, "ENGINE=InnoDB", "")
+		nativeTableEndSQL = strings.ReplaceAll(nativeTableEndSQL, "ROW_FORMAT=FIXED", "")
+		nativeTableEndSQL = regexp.MustCompile(`AUTO_INCREMENT=(\d){1,}`).ReplaceAllString(nativeTableEndSQL, ``)
+		nativeTableEndSQL = regexp.MustCompile(`ROW_FORMAT=[A-Z]{1,} `).ReplaceAllString(nativeTableEndSQL, ``)
+		// 新原生SQL
+		newNativeTableCreateSQL := fmt.Sprintf("%s%s%s", nativeTableBeforeSQL, newNativeTableCenterSQL, nativeTableEndSQL)
+		_, err = r.sDb.Exec(newNativeTableCreateSQL)
 		if err != nil {
-			global.Log.Errorf("%s 新SQL执行错误\n%s\n%s", elem, newTableStructSQl, err)
+			global.Log.Errorf("%s 新SQL执行错误\n%s\n%s", elem, newNativeTableCreateSQL, err)
 			return false
 		}
 		// 增加 row_date
-		_, err = r.bDb.Exec(fmt.Sprintf(rowDateSQl, elem))
+		_, err = r.bDb.Exec(fmt.Sprintf(alterTableRowDateSQL, elem))
 		if err != nil {
 			global.Log.Errorf("%s 追加row_date错误: %s", elem, err)
 			return false
@@ -114,41 +149,37 @@ func (r body) syncTableStruct(tables []string) bool {
 }
 
 func (r body) getUnCreatedTables() []string {
-	tablesSql := "show tables"
+	queryTableSQL := "show tables"
 
-	allTableRows, err := r.bDb.Query(tablesSql)
+	bDbTableRows, err := r.bDb.Query(queryTableSQL)
 	if err != nil {
 		global.Log.Errorf("查询bDb所有表错误 %s", err)
 		return nil
 	}
-	allTable := getRowsSimpleData(allTableRows)
-	allTableName := make([]string, len(allTable))
-	for index := range allTable {
-		tableName := allTable[index].(string)
-		//name := *(*string)(unsafe.Pointer(&tableName))
-		allTableName = append(allTableName, tableName)
+	bDbTable := getRowsSimpleData(bDbTableRows)
+	bDbTables := make([]string, len(bDbTable))
+	for index := range bDbTable {
+		bDbTables = append(bDbTables, bDbTable[index].(string))
 	}
 
-	haveTableRows, err := r.sDb.Query(tablesSql)
+	sDbTableRows, err := r.sDb.Query(queryTableSQL)
 	if err != nil {
 		global.Log.Errorf("查询sDb所有表错误 %s", err)
 		return nil
 	}
-	haveTable := getRowsSimpleData(haveTableRows)
-	haveTableName := make([]string, len(allTable))
-	for index := range haveTable {
-		tableName := haveTable[index].(string)
-		//name := *(*string)(unsafe.Pointer(&tableName))
-		haveTableName = append(haveTableName, tableName)
+	sDbTable := getRowsSimpleData(sDbTableRows)
+	sDbTables := make([]string, len(bDbTable))
+	for index := range sDbTable {
+		sDbTables = append(sDbTables, sDbTable[index].(string))
 	}
 
-	dbNameMap := make(map[string]bool, len(haveTableName))
-	for _, elem := range haveTableName {
+	dbNameMap := make(map[string]bool, len(sDbTables))
+	for _, elem := range sDbTables {
 		dbNameMap[elem] = true
 	}
 
 	unCreatedTableName := make([]string, 0)
-	for _, elem := range allTableName {
+	for _, elem := range bDbTables {
 		if !dbNameMap[elem] {
 			unCreatedTableName = append(unCreatedTableName, elem)
 		}
