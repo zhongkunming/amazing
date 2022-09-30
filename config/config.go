@@ -6,4 +6,6 @@ type Config struct {
 	DailyCheck DailyCheck `yaml:"dailyCheck" json:"dailyCheck"`
 
 	DbBackup DbBackup `yaml:"dbBackup" json:"dbBackup"`
+
+	Push Push `yaml:"push" json:"push"`
 }

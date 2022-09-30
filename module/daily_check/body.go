@@ -9,6 +9,7 @@ import (
 	"service-hub/config"
 	"service-hub/global"
 	"service-hub/model"
+	"service-hub/module/push"
 	"service-hub/util"
 	"time"
 )
@@ -40,6 +41,7 @@ func (r body) do() {
 	if result.Ret == 0 {
 		global.Log.Errorf("%s 签到异常: %s", r.user.Email, result.Msg)
 	} else if result.Ret == 1 {
+		push.MessagePushFlow(r.user.Email, result.Msg, result.TrafficInfo["unUsedTraffic"])
 		global.Log.Infof("%s 签到成功: %s", r.user.Email, result.Msg)
 		global.Log.Infof("%s 剩余未使用流量: %s", r.user.Email, result.TrafficInfo["unUsedTraffic"])
 	}

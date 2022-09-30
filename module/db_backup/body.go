@@ -80,6 +80,8 @@ func (r body) syncData() {
 			tableColumns = append(tableColumns, columnName)
 		}
 
+		// 获取记录条数
+
 	}
 
 }
