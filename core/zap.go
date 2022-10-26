@@ -4,7 +4,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"service-hub/global"
+	"mcs/global"
 	"sync"
 	"time"
 )
@@ -33,8 +33,7 @@ func InitZap() {
 
 	// 自定义时间输出格式
 	customTimeEncoder := func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-
-		enc.AppendString(t.Format("2006-01-02 15:04:05.999"))
+		enc.AppendString(t.Format("2006-01-02 15:04:05"))
 	}
 	// 自定义日志级别显示
 	customLevelEncoder := func(level zapcore.Level, enc zapcore.PrimitiveArrayEncoder) {

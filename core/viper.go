@@ -4,7 +4,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	sysLog "log"
-	"service-hub/global"
+	"mcs/global"
 )
 
 func InitViper() {

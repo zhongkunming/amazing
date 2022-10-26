@@ -3,7 +3,7 @@ package global
 import (
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"service-hub/config"
+	"mcs/config"
 )
 
 var (

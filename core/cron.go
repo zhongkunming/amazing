@@ -2,7 +2,7 @@ package core
 
 import (
 	"github.com/robfig/cron/v3"
-	"service-hub/global"
+	"mcs/global"
 )
 
 func InitCron() {

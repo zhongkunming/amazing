@@ -1,4 +1,4 @@
-package daily_check
+package flows
 
 import (
 	"encoding/json"
@@ -6,19 +6,18 @@ import (
 	"fmt"
 	"github.com/go-resty/resty/v2"
 	"math/rand"
-	"service-hub/config"
-	"service-hub/global"
-	"service-hub/model"
-	"service-hub/module/push"
-	"service-hub/util"
+	"mcs/config"
+	"mcs/global"
+	"mcs/model"
+	"mcs/util"
 	"time"
 )
 
 type body struct {
-	user       config.DailyCheckUser
-	loginUrl   string
-	checkInUrl string
-	client     *resty.Request
+	user     config.FLowsUser
+	loginUrl string
+	flowsUrl string
+	client   *resty.Request
 }
 
 func (r body) do() {
@@ -41,7 +40,6 @@ func (r body) do() {
 	if result.Ret == 0 {
 		global.Log.Errorf("%s 签到异常: %s", r.user.Email, result.Msg)
 	} else if result.Ret == 1 {
-		push.MessagePushFlow(r.user.Email, result.Msg, result.TrafficInfo["unUsedTraffic"])
 		global.Log.Infof("%s 签到成功: %s", r.user.Email, result.Msg)
 		global.Log.Infof("%s 剩余未使用流量: %s", r.user.Email, result.TrafficInfo["unUsedTraffic"])
 	}
@@ -66,7 +64,7 @@ func (r body) login() error {
 }
 
 func (r body) checkin() (*model.CheckInResult, error) {
-	checkInResp, err := r.client.Post(r.checkInUrl)
+	checkInResp, err := r.client.Post(r.flowsUrl)
 	if err != nil {
 		return nil, errors.New(fmt.Sprintf("请求签到接口失败, %s", err))
 	}
