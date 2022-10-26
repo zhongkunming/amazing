@@ -10,13 +10,13 @@ import (
 
 const spec = "0 0 7 * * ?"
 
-type LoadableFLows struct{}
+type LoadableFlows struct{}
 
-func (r LoadableFLows) Judge() bool {
+func (r LoadableFlows) Judge() bool {
 	return true
 }
 
-func (r LoadableFLows) Load() {
+func (r LoadableFlows) Load() {
 	_, err := global.Cron.AddFunc(spec, func() {
 		waitGroup := sync.WaitGroup{}
 		global.Log.Infof("%s, 开始签到", time.Now().Format("2006-01-02"))

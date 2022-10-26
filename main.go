@@ -11,7 +11,7 @@ func main() {
 	core.InitCron()
 
 	// 注册任务
-	core.Register(flows.LoadableFLows{})
+	core.Register(flows.LoadableFlows{})
 
 	core.Server()
 }
