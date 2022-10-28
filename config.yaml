@@ -1,0 +1,16 @@
+app:
+  name: "mcs"
+  logFileName: "./log.log"
+
+flows:
+  loginUrl: "#"
+  flowsUrl: "#"
+  users:
+    - email: "#"
+      passwd: "#"
+    - email: "#"
+      passwd: "#"
+
+
+
+
