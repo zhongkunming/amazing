@@ -12,21 +12,18 @@ var lock sync.Mutex
 func Server() {
 	// 加载需要启动的模块
 	for _, service := range services {
-		v := reflect.ValueOf(service)
-		val, ok := v.Interface().(Loadable)
+		//v := reflect.ValueOf(service)
+		//val, ok := v.Interface().(Loadable)
 
-		serviceType := reflect.TypeOf(val)
+		serviceType := reflect.TypeOf(service)
 		serviceTypeName := serviceType.Name()
 
-		if ok {
-			global.Log.Infof("%s match to Loadable", serviceTypeName)
-			if val.Judge() {
-				global.Log.Infof("it's loading %s now", serviceTypeName)
-				val.Load()
-				continue
-			}
+		global.Log.Infof("%s match to Loadable", serviceTypeName)
+		if service.CanLoad() {
+			global.Log.Infof("it's loading %s now", serviceTypeName)
+			service.Load()
+			continue
 		}
-		global.Log.Fatalf("%s not match to Loadable", serviceTypeName)
 	}
 	select {}
 }

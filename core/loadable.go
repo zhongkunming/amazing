@@ -1,7 +1,7 @@
 package core
 
 type Loadable interface {
-	Judge() bool
+	CanLoad() bool
 
 	Load()
 }
