@@ -5,6 +5,7 @@ import (
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
 	"mcs/global"
+	"os"
 	"sync"
 	"time"
 )
@@ -45,7 +46,7 @@ func InitZap() {
 
 	jsonEncoder := zapcore.NewConsoleEncoder(encoderConfig)
 
-	core := zapcore.NewCore(jsonEncoder, writeSyncer, zapcore.DebugLevel)
+	core := zapcore.NewCore(jsonEncoder, zapcore.NewMultiWriteSyncer(writeSyncer, zapcore.AddSync(os.Stdout)), zapcore.DebugLevel)
 	// log := zap.New(core, zap.AddCaller())
 	global.Log = zap.New(core, zap.AddCaller()).Sugar()
 }

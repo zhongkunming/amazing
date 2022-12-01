@@ -12,7 +12,7 @@ const spec = "0 0 7 * * ?"
 
 type LoadableFlows struct{}
 
-func (r LoadableFlows) Judge() bool {
+func (r LoadableFlows) CanLoad() bool {
 	return true
 }
 

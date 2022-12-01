@@ -12,7 +12,6 @@ require (
 )
 
 require (
-	github.com/BurntSushi/toml v1.2.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/magiconair/properties v1.8.6 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
