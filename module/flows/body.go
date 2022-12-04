@@ -1,15 +1,16 @@
 package flows
 
 import (
+	"amazing/config"
+	"amazing/global"
+	"amazing/model"
+	"amazing/util"
 	"encoding/json"
 	"errors"
 	"fmt"
+	huge "github.com/dablelv/go-huge-util"
 	"github.com/go-resty/resty/v2"
 	"math/rand"
-	"mcs/config"
-	"mcs/global"
-	"mcs/model"
-	"mcs/util"
 	"time"
 )
 
@@ -21,6 +22,10 @@ type body struct {
 }
 
 func (r body) do() {
+
+	r.client.SetHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+	r.client.SetHeader("Content-Type", "application/json")
+
 	rand.Seed(time.Now().UnixMicro())
 
 	time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
@@ -30,19 +35,10 @@ func (r body) do() {
 		return
 	}
 
-	time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
-	result, err := r.checkin()
-	if err != nil {
-		global.Log.Errorf("%s 签到异常，%s", r.user.Email, err)
-		return
-	}
+	global.Log.Infof("%s 登录成功", r.user.Email)
 
-	if result.Ret == 0 {
-		global.Log.Errorf("%s 签到异常: %s", r.user.Email, result.Msg)
-	} else if result.Ret == 1 {
-		global.Log.Infof("%s 签到成功: %s", r.user.Email, result.Msg)
-		global.Log.Infof("%s 剩余未使用流量: %s", r.user.Email, result.TrafficInfo["unUsedTraffic"])
-	}
+	time.Sleep(time.Duration(rand.Intn(30)) * time.Second)
+	r.checkin()
 }
 
 func (r body) login() error {
@@ -63,12 +59,30 @@ func (r body) login() error {
 	return err
 }
 
-func (r body) checkin() (*model.CheckInResult, error) {
+func (r body) checkin() {
+	r.client.SetHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36")
+	r.client.SetHeader("Content-Type", "application/json")
+
 	checkInResp, err := r.client.Post(r.flowsUrl)
 	if err != nil {
-		return nil, errors.New(fmt.Sprintf("请求签到接口失败, %s", err))
+		global.Log.Errorf("请求签到接口失败, %s", err)
+		return
 	}
+
 	var result = &model.CheckInResult{}
 	err = json.Unmarshal([]byte(util.TransByte(checkInResp.Body())), result)
-	return result, err
+
+	if err != nil {
+		global.Log.Errorf("%s 请求结果转换异常, %s", r.user.Email, err)
+		return
+	}
+
+	indentJSON, _ := huge.ToIndentJSON(result)
+	global.Log.Infof("%s 请求结果: %s", r.user.Email, indentJSON)
+
+	if result.Ret == 1 {
+		global.Log.Infof("%s 签到成功: %s", r.user.Email, result.Msg)
+		global.Log.Infof("%s 剩余未使用流量: %s", r.user.Email, result.TrafficInfo["unUsedTraffic"])
+	}
+
 }

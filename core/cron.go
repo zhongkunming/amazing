@@ -1,8 +1,8 @@
 package core
 
 import (
+	"amazing/global"
 	"github.com/robfig/cron/v3"
-	"mcs/global"
 )
 
 func InitCron() {

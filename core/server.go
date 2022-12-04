@@ -1,7 +1,7 @@
 package core
 
 import (
-	"mcs/global"
+	"amazing/global"
 	"reflect"
 	"sync"
 )

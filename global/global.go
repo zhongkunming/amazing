@@ -1,9 +1,9 @@
 package global
 
 import (
+	"amazing/config"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
-	"mcs/config"
 )
 
 var (

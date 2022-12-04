@@ -1,10 +1,10 @@
 package core
 
 import (
+	"amazing/global"
 	"github.com/fsnotify/fsnotify"
 	"github.com/spf13/viper"
 	sysLog "log"
-	"mcs/global"
 )
 
 func InitViper() {

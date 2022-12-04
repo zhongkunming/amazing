@@ -1,14 +1,16 @@
 package flows
 
 import (
+	"amazing/config"
+	"amazing/global"
 	"github.com/go-resty/resty/v2"
-	"mcs/config"
-	"mcs/global"
 	"sync"
 	"time"
 )
 
-const spec = "0 0 7 * * ?"
+const spec = "0 0 8 * * ?"
+
+//const spec = "0 */1 * * * ?"
 
 type LoadableFlows struct{}
 

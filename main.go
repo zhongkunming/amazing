@@ -1,8 +1,8 @@
 package main
 
 import (
-	"mcs/core"
-	"mcs/module/flows"
+	"amazing/core"
+	"amazing/module/flows"
 )
 
 func main() {

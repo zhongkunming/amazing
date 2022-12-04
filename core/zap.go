@@ -1,10 +1,10 @@
 package core
 
 import (
+	"amazing/global"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
-	"mcs/global"
 	"os"
 	"sync"
 	"time"
