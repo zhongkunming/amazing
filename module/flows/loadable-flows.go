@@ -18,7 +18,24 @@ func (r LoadableFlows) CanLoad() bool {
 	return true
 }
 
+func (r LoadableFlows) preLoad() {
+	users := global.Global.Flows.Users
+	loginUrl := global.Global.Flows.LoginUrl
+	flowsUrl := global.Global.Flows.FlowsUrl
+	for _, user := range users {
+		processBody := func(u config.FLowsUser) {
+			body{user: u,
+				loginUrl: loginUrl,
+				flowsUrl: flowsUrl,
+				client:   resty.New().R()}.do()
+		}
+		go processBody(user)
+	}
+}
+
 func (r LoadableFlows) Load() {
+	r.preLoad()
+
 	_, err := global.Cron.AddFunc(spec, func() {
 		waitGroup := sync.WaitGroup{}
 		global.Log.Infof("%s, 开始签到", time.Now().Format("2006-01-02"))
